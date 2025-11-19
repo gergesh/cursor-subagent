@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "debug": {
+      "command": "uv",
+      "args": ["--directory", ".", "run", ".cursor/agents/subagent-tester/subagent_tester_mcp.py"]
+    }
+  }
+}

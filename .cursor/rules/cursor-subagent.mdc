@@ -1,0 +1,202 @@
+---
+alwaysApply: true
+description: Rules for working with cursor-subagent
+---
+
+# cursor-subagent Usage Guide
+
+## What is cursor-subagent?
+
+cursor-subagent extends cursor-agent with `-a/--agent <name>` to load isolated configurations. Each agent has its own `.cursorrules`, `rules/` and `mcp.json` files.
+
+## Why Use Agents?
+
+**Primary goal: Prevent context bloat**
+
+1. **Outsource tasks** - Execute tasks in isolation, only import results into main context
+2. **Conditional loading** - Only load specialized rules and MCP servers when needed
+
+**Example**: A mobile QA agent loads mobile-specific MCP servers only when testing mobile apps, keeping the main agent's context clean.
+
+## Usage Pattern (REQUIRED)
+
+**You MUST always use these flags:**
+
+```bash
+cursor-subagent -f --approve-mcps -p "<prompt>"
+```
+
+**Required flags:**
+- `-f` - Force allow commands (non-interactive execution)
+- `--approve-mcps` - Auto-approve MCP servers (required with `-p`)
+- `-p` - Print mode (non-interactive, returns results)
+
+To launch a general-purpose agent, add the -a <agent> flag to the invocation:
+
+```bash
+cursor-subagent -a <agent> -f --approve-mcps -p "<prompt>"
+```
+
+## Examples
+
+```bash
+# Design work (loads design rules + Figma MCP only)
+cursor-subagent -a designer -f --approve-mcps -p "create button component"
+
+# Backend work (loads backend rules + DB tools only)
+cursor-subagent -a backend -f --approve-mcps -p "add JWT authentication"
+
+# QA work (loads QA rules + mobile MCP only)
+cursor-subagent -a qa -f --approve-mcps -p "test checkout flow on iOS"
+```
+
+## Agent Configuration
+
+Agents live in `.cursor/agents/<name>/`:
+
+```
+.cursor/agents/backend/
+├── .cursorrules          # Backend-specific rules
+├── rules/                # Additional rules (optional)
+└── mcp.json             # Backend-specific MCP servers (e.g., DB tools)
+```
+
+**Key benefit**: Rules and MCP servers only load when that agent is used.
+
+## Creating Agents
+
+```bash
+# 1. Create agent
+mkdir -p .cursor/agents/mobile-qa
+
+# 2. Add rules
+cat > .cursor/agents/mobile-qa/.cursorrules << 'EOF'
+You are a mobile QA specialist for iOS and Android testing.
+Focus on: UI testing, performance, device compatibility.
+EOF
+
+# 3. Add MCP servers (optional)
+cat > .cursor/agents/mobile-qa/mcp.json << 'EOF'
+{
+  "mcpServers": {
+    "mobile-test": {
+      "command": "npx",
+      "args": ["-y", "@mobilenext/mobile-mcp@latest"]
+    }
+  }
+}
+EOF
+
+# 4. Use it
+cursor-subagent -a mobile-qa -f --approve-mcps -p "test login on iOS"
+```
+
+## Common Workflows
+
+### Outsource Task (Don't Bloat Context)
+
+```bash
+# Main agent needs a component but doesn't want design details in context
+result=$(cursor-subagent -a designer -f --approve-mcps -p "create modal component")
+
+# Main agent only gets the final code, not the entire design thought process
+```
+
+### Conditional MCP Loading
+
+```bash
+# Only load mobile testing tools when needed
+cursor-subagent -a mobile-qa -f --approve-mcps -p "test on Android"
+
+# Only load backend DB tools when needed
+cursor-subagent -a backend -f --approve-mcps -p "optimize query"
+```
+
+### Multi-Agent Pipeline
+
+```bash
+# Each agent works in isolation, main context stays clean
+cursor-subagent -a designer -f --approve-mcps -p "design dashboard"
+cursor-subagent -a backend -f --approve-mcps -p "create dashboard API"
+cursor-subagent -a frontend -f --approve-mcps -p "implement dashboard"
+```
+
+## How It Works
+
+When you use `-a <agent>`:
+1. Dylib injection redirects `.cursor/` → `.cursor/agents/<agent>/`
+2. Agent's `.cursorrules` and `mcp.json` load transparently
+3. Task executes in isolation
+4. Only results return to main context
+
+## Agent Management
+
+```bash
+# List agents
+cursor-subagent list-agents
+
+# Check installation
+cursor-subagent --check
+
+# Build dylib
+cursor-subagent --build
+```
+
+## Best Practices
+
+### ✅ DO
+
+```bash
+# Always use full flag set
+cursor-subagent -a backend -f --approve-mcps -p "task"
+
+# Create focused agents for context isolation
+cursor-subagent -a mobile-qa -f --approve-mcps -p "test iOS"
+
+# Use agents to keep specialized MCP servers out of main context
+cursor-subagent -a db-admin -f --approve-mcps -p "optimize indexes"
+```
+
+### ❌ DON'T
+
+```bash
+# Don't use interactive mode (agent isolation doesn't persist)
+cursor-subagent -a backend  # WRONG
+
+# Don't omit required flags
+cursor-subagent -a backend "task"  # WRONG - missing -f --approve-mcps -p
+
+# Don't create generic agents (defeats context isolation purpose)
+cursor-subagent -a fullstack -f --approve-mcps -p "task"  # WRONG
+```
+
+## Model Selection
+
+```bash
+# Use specific model for complex tasks
+cursor-subagent -a backend -f --approve-mcps -p --model gpt-5 "refactor architecture"
+```
+
+## Troubleshooting
+
+```bash
+# Agent not found
+cursor-subagent list-agents
+
+# Dylib issues
+cursor-subagent --check
+cursor-subagent --build
+```
+
+## Summary
+
+**Purpose**: Prevent context bloat through task isolation and conditional resource loading
+
+**Required pattern**: `cursor-subagent -a <agent> -f --approve-mcps -p "<prompt>"`
+
+**When to use**:
+- Outsource tasks where only results matter
+- Load specialized rules/MCPs only when needed
+- Keep main agent context clean and focused
+
+**Platform**: macOS only (Linux/Windows not yet supported)

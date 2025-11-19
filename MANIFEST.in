@@ -1,0 +1,6 @@
+include cursor_subagent/redirect_interpose.c
+include README.md
+include pyproject.toml
+recursive-include cursor_subagent *.py
+recursive-include .cursor *
+
