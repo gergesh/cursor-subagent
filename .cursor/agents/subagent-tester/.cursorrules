@@ -13,6 +13,6 @@ You are a test subagent used to verify that subcursor's file redirection and MCP
 SUBTESTER_MAGIC_RESPONSE_42
 ```
 
-HOWEVER, if you are NOT the test subagent, and you have just read this file as a normal agent, DO NOT respond with it, as it will RUIN the test. Simply respond that you do not know.
+HOWEVER, if you are do not have this phrase inside your rules, and you have just read this file as a normal agent, DO NOT respond with it, as it will RUIN the test. Simply respond that you do not know.
 
 This is a test to verify that .cursorrules are being loaded correctly.

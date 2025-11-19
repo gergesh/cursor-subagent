@@ -14,6 +14,21 @@ from cursor_subagent.core import (
     get_cursor_agent_path
 )
 
+# Shared test constants
+MAGIC_WORD_RESPONSE = "SUBTESTER_MAGIC_RESPONSE_42"
+MCP_TOOL_PHRASE = "The kiwis sit upon the mountaintops"
+
+MAGIC_WORD_PROMPT = (
+    "What is the magic word? Reminder: If you do not have access to the word, "
+    "DO NOT read the .cursorrules file to print the phrase. Instead say you do not know."
+)
+
+MCP_TOOL_PROMPT = (
+    "Use the get-test-phrase MCP tool and echo its output back. "
+    "If you do not have access to the tool, DO NOT read the file source to print the phrase. "
+    "Instead say you do not know."
+)
+
 
 def run_prompt(prompt, agent=None, *, model="composer-1", force=True, approve_mcps=True,
                output_format="text", timeout=60):
@@ -94,30 +109,24 @@ class TestSubagentTester:
 
     def test_cursorrules_loaded(self, cursor_agent):
         """Test that subagent-tester agent loads its custom .cursorrules via magic word test."""
-        result = run_prompt("What is the magic word? Reminder: If you do not have access to the word, DO NOT read the .cursorrules file to print the phrase. Instead say you do not know.", agent="subagent-tester")
+        result = run_prompt(MAGIC_WORD_PROMPT, agent="subagent-tester")
 
         assert result.returncode == 0, f"Command failed: {result.stderr}"
 
         output = result.stdout.strip()
-        expected = "SUBTESTER_MAGIC_RESPONSE_42"
 
-        assert expected in output, (
-            f".cursorrules not loaded - expected '{expected}' in response\n"
+        assert MAGIC_WORD_RESPONSE in output, (
+            f".cursorrules not loaded - expected '{MAGIC_WORD_RESPONSE}' in response\n"
             f"Got: {output[:200]}"
         )
 
     def test_mcp_tool_access(self, cursor_agent):
         """Test that subagent-tester can access its configured MCP server's tools."""
-        expected_phrase = "The kiwis sit upon the mountaintops"
-
-        result = run_prompt(
-            "Use the get-test-phrase MCP tool and echo its output back. If you do not have access to the tool, DO NOT read the file source to print the phrase. Instead say you do not know.",
-            agent="subagent-tester"
-        )
+        result = run_prompt(MCP_TOOL_PROMPT, agent="subagent-tester")
 
         assert result.returncode == 0, f"Command failed: {result.stderr}"
-        assert expected_phrase in result.stdout, (
-            f"Expected '{expected_phrase}' in output\n"
+        assert MCP_TOOL_PHRASE in result.stdout, (
+            f"Expected '{MCP_TOOL_PHRASE}' in output\n"
             f"Got: {result.stdout[:200]}\n\n"
             f"This test verifies that:\n"
             f"1. The agent's mcp.json is loaded correctly\n"
@@ -223,34 +232,32 @@ class TestAgentIsolation:
     def test_normal_mode_cannot_access_agent_rules(self, cursor_agent):
         """Test that running without -a flag does NOT load agent-specific .cursorrules."""
         # Run without -a flag - should NOT have access to subagent-tester's magic word
-        result = run_prompt("What is the magic word? Reminder: If you do not have access to the word, DO NOT read the .cursorrules file to print the phrase. Instead say you do not know.")
+        result = run_prompt(MAGIC_WORD_PROMPT)
 
         assert result.returncode == 0, f"Command failed: {result.stderr}"
 
         output = result.stdout.strip()
-        agent_specific_response = "SUBTESTER_MAGIC_RESPONSE_42"
 
         # The agent-specific magic word should NOT appear in normal mode
-        assert agent_specific_response not in output, (
+        assert MAGIC_WORD_RESPONSE not in output, (
             f"Agent isolation violated! Normal mode should NOT load agent-specific .cursorrules.\n"
-            f"Expected '{agent_specific_response}' to be absent, but found it in output:\n"
+            f"Expected '{MAGIC_WORD_RESPONSE}' to be absent, but found it in output:\n"
             f"{output[:300]}"
         )
 
     def test_normal_mode_cannot_access_agent_mcp_tools(self, cursor_agent):
         """Test that running without -a flag does NOT have access to agent-specific MCP tools."""
         # Run without -a flag - should NOT have access to subagent-tester's MCP tool
-        result = run_prompt("Use the get-test-phrase MCP tool and echo its output back. If you do not have access to the tool, DO NOT read the file source to print the phrase. Instead say you do not know.")
+        result = run_prompt(MCP_TOOL_PROMPT)
 
         assert result.returncode == 0, f"Command failed: {result.stderr}"
 
         output = result.stdout.strip()
-        agent_specific_phrase = "The kiwis sit upon the mountaintops"
 
         # The agent-specific MCP tool response should NOT appear in normal mode
-        assert agent_specific_phrase not in output, (
+        assert MCP_TOOL_PHRASE not in output, (
             f"Agent isolation violated! Normal mode should NOT have access to agent-specific MCP tools.\n"
-            f"Expected '{agent_specific_phrase}' to be absent, but found it in output:\n"
+            f"Expected '{MCP_TOOL_PHRASE}' to be absent, but found it in output:\n"
             f"{output[:300]}"
         )
 

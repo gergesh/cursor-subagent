@@ -42,9 +42,10 @@ class BuildDylib(build_py):
 
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Compile command
+        # Compile command (universal binary for Intel and Apple Silicon)
         cmd = [
             "clang",
+            "-arch", "x86_64",
             "-arch", "arm64e",
             "-dynamiclib",
             "-o", str(output_file),
