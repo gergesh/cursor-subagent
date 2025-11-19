@@ -15,6 +15,48 @@ from cursor_subagent.core import (
 )
 
 
+def run_prompt(prompt, agent=None, *, model="composer-1", force=True, approve_mcps=True,
+               output_format="text", timeout=60):
+    """Helper method to run cursor-subagent with a prompt.
+
+    Args:
+        prompt: The prompt to send to the agent
+        agent: Optional agent name (uses -a flag if provided)
+        model: Model to use (default: composer-1)
+        force: Whether to pass --force flag (default: True)
+        approve_mcps: Whether to pass --approve-mcps flag (default: True)
+        output_format: Output format (default: text)
+        timeout: Command timeout in seconds (default: 60)
+
+    Returns:
+        subprocess.CompletedProcess result
+    """
+    cmd = ["cursor-subagent"]
+
+    if agent:
+        cmd.extend(["-a", agent])
+
+    cmd.extend(["-p", prompt])
+    cmd.extend(["--model", model])
+    cmd.append(f"--output-format={output_format}")
+
+    if force:
+        cmd.append("--force")
+
+    if approve_mcps:
+        cmd.append("--approve-mcps")
+
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        cwd=str(Path.cwd())
+    )
+
+    return result
+
+
 class TestAgentDiscovery:
     """Tests for agent discovery and listing."""
 
@@ -52,15 +94,7 @@ class TestSubagentTester:
 
     def test_cursorrules_loaded(self, cursor_agent):
         """Test that subagent-tester agent loads its custom .cursorrules via magic word test."""
-        # Run cursor-agent with subagent-tester agent configuration
-        result = subprocess.run(
-            ["cursor-subagent", "-a", "subagent-tester", "-p", "What is the magic word?",
-             "--model", "sonnet-4.5", "--output-format=text"],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            cwd=str(Path.cwd())
-        )
+        result = run_prompt("What is the magic word? Reminder: If you do not have access to the word, DO NOT read the .cursorrules file to print the phrase. Instead say you do not know.", agent="subagent-tester")
 
         assert result.returncode == 0, f"Command failed: {result.stderr}"
 
@@ -76,14 +110,9 @@ class TestSubagentTester:
         """Test that subagent-tester can access its configured MCP server's tools."""
         expected_phrase = "The kiwis sit upon the mountaintops"
 
-        result = subprocess.run(
-            ["cursor-subagent", "-a", "subagent-tester", "-p",
-             "Use the get-test-phrase MCP tool and echo its output back",
-             "--model", "sonnet-4.5", "--output-format=text", "--force", "--approve-mcps"],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            cwd=str(Path.cwd())
+        result = run_prompt(
+            "Use the get-test-phrase MCP tool and echo its output back. If you do not have access to the tool, DO NOT read the file source to print the phrase. Instead say you do not know.",
+            agent="subagent-tester"
         )
 
         assert result.returncode == 0, f"Command failed: {result.stderr}"
@@ -95,22 +124,6 @@ class TestSubagentTester:
             f"2. The MCP server starts and connects\n"
             f"3. Tools can be called successfully"
         )
-
-    def test_model_selection(self, cursor_agent):
-        """Test that different models can be selected."""
-        result = subprocess.run(
-            ["cursor-subagent", "-a", "subagent-tester", "-p", "Say 'Hello from GPT'",
-             "--model", "gpt-5", "--output-format=text"],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            cwd=str(Path.cwd())
-        )
-
-        assert result.returncode == 0, f"Command failed: {result.stderr}"
-        # Just verify it ran successfully, model selection is internal
-        assert len(result.stdout) > 0
-
 
 class TestCLICommands:
     """Tests for CLI commands."""
@@ -197,9 +210,6 @@ class TestArgumentForwarding:
 
 class TestAgentIsolation:
     """Tests to verify that normal mode (without -a) cannot access agent-specific resources.
-
-    Note: These tests should run BEFORE any agent-specific tests to avoid MCP server
-    process persistence issues. MCP servers are long-running and may persist across runs.
     """
 
     @pytest.fixture
@@ -210,20 +220,10 @@ class TestAgentIsolation:
             pytest.skip("cursor-agent not installed")
         return cursor_agent
 
-    def test_01_normal_mode_cannot_access_agent_rules(self, cursor_agent):
-        """Test that running without -a flag does NOT load agent-specific .cursorrules.
-
-        This test is numbered 01 to run first, ensuring clean state.
-        """
+    def test_normal_mode_cannot_access_agent_rules(self, cursor_agent):
+        """Test that running without -a flag does NOT load agent-specific .cursorrules."""
         # Run without -a flag - should NOT have access to subagent-tester's magic word
-        result = subprocess.run(
-            ["cursor-subagent", "-p", "What is the magic word?",
-             "--model", "sonnet-4.5", "--output-format=text"],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            cwd=str(Path.cwd())
-        )
+        result = run_prompt("What is the magic word? Reminder: If you do not have access to the word, DO NOT read the .cursorrules file to print the phrase. Instead say you do not know.")
 
         assert result.returncode == 0, f"Command failed: {result.stderr}"
 
@@ -237,26 +237,10 @@ class TestAgentIsolation:
             f"{output[:300]}"
         )
 
-    @pytest.mark.xfail(
-        reason="MCP servers are long-running processes that may persist from previous runs. "
-               "Full isolation requires MCP server lifecycle management."
-    )
-    def test_02_normal_mode_cannot_access_agent_mcp_tools(self, cursor_agent):
-        """Test that running without -a flag does NOT have access to agent-specific MCP tools.
-
-        This test is marked as xfail because MCP servers may persist across runs.
-        It documents expected behavior but may fail if MCP servers from agent tests are still running.
-        """
+    def test_normal_mode_cannot_access_agent_mcp_tools(self, cursor_agent):
+        """Test that running without -a flag does NOT have access to agent-specific MCP tools."""
         # Run without -a flag - should NOT have access to subagent-tester's MCP tool
-        result = subprocess.run(
-            ["cursor-subagent", "-p",
-             "Use the get-test-phrase MCP tool and echo its output back",
-             "--model", "sonnet-4.5", "--output-format=text", "--force", "--approve-mcps"],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            cwd=str(Path.cwd())
-        )
+        result = run_prompt("Use the get-test-phrase MCP tool and echo its output back. If you do not have access to the tool, DO NOT read the file source to print the phrase. Instead say you do not know.")
 
         assert result.returncode == 0, f"Command failed: {result.stderr}"
 

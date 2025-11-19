@@ -45,8 +45,7 @@ class BuildDylib(build_py):
         # Compile command
         cmd = [
             "clang",
-            "-arch", "arm64",
-            "-arch", "x86_64",
+            "-arch", "arm64e",
             "-dynamiclib",
             "-o", str(output_file),
             str(src_file),
@@ -104,5 +103,7 @@ if __name__ == "__main__":
             "bdist_wheel": BdistWheelMacOS,
         }
     )
+
+
 
 
