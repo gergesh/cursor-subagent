@@ -6,6 +6,7 @@ Entry point: cursor-subagent mcp-server
 """
 
 import json
+import os
 import subprocess
 import asyncio
 from mcp.server import Server
@@ -15,8 +16,7 @@ from mcp.types import Tool, TextContent
 from .core import (
     list_agents,
     get_agent_info,
-    create_agent,
-    run_with_agent
+    get_project_root
 )
 
 
@@ -30,7 +30,7 @@ async def list_tools() -> list[Tool]:
     return [
         Tool(
             name="list-agents",
-            description="List all available Cursor agent configurations",
+            description="List all available Cursor agents",
             inputSchema={
                 "type": "object",
                 "properties": {},
@@ -50,7 +50,8 @@ async def list_tools() -> list[Tool]:
                         "type": "string",
                         "description": (
                             "Name of the agent to use "
-                            "(e.g., 'designer' for UI/UX, 'backend' for APIs, 'frontend' for React)"
+                            "(e.g., 'designer' for UI/UX, 'backend' for APIs, 'frontend' for React). "
+                            "Omit to use the generic agent."
                         )
                     },
                     "prompt": {
@@ -68,27 +69,9 @@ async def list_tools() -> list[Tool]:
                         )
                     }
                 },
-                "required": ["name", "prompt"]
+                "required": ["prompt"]
             }
         ),
-        Tool(
-            name="create-agent",
-            description="Create a new agent with a basic configuration structure",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "Name of the new agent"
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "Description of the agent's purpose and expertise"
-                    }
-                },
-                "required": ["name", "description"]
-            }
-        )
     ]
 
 
@@ -102,7 +85,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         if not agents:
             return [TextContent(
                 type="text",
-                text="No agents found. Create one using the create-agent tool."
+                text="No agents found."
             )]
 
         result = ["Available agents:\n"]
@@ -123,49 +106,21 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         prompt = arguments["prompt"]
         model = arguments.get("model")
 
-        # Build cursor-agent command
-        cursor_args = ["-p", prompt, "--output-format=text", "--force", "--approve-mcps"]
+        # Build cursor-subagent command
+        cmd = ["cursor-subagent"]
+        if agent_name:
+            cmd.extend(["-a", agent_name])
+
         if model:
-            cursor_args.extend(["--model", model])
-
-        # Run with agent (this will block and return the output)
-        # We need to capture output, so let's use subprocess directly
-        from .core import get_agents_dir, get_dylib_path, get_cursor_agent_path, get_project_root
-        import sys
-
-        agent_path = get_agents_dir() / agent_name
-        if not agent_path.exists():
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": f"Agent '{agent_name}' does not exist"
-                }, indent=2)
-            )]
-
-        dylib_path = get_dylib_path()
-        if not dylib_path.exists():
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": f"Dylib not found. Run 'cursor-subagent --build' first."
-                }, indent=2)
-            )]
-
-        import os
-        env = os.environ.copy()
-        env["DYLD_INSERT_LIBRARIES"] = str(dylib_path)
-        env["CURSOR_REDIRECT_TARGET"] = str(agent_path)
-        env["CURSOR_REDIRECT_SOURCE"] = str(get_project_root() / ".cursor")
-
-        cursor_agent = get_cursor_agent_path()
-        cmd = [str(cursor_agent)] + cursor_args
+            cmd.extend(["--model", model])
+        # Add arguments for cursor-agent
+        # These are passed through by cursor-subagent
+        cmd.extend(["-p", "--output-format=text", "--force", "--approve-mcps", prompt])
 
         try:
             result = subprocess.run(
                 cmd,
-                env=env,
+                env=os.environ.copy(),
                 cwd=str(get_project_root()),
                 capture_output=True,
                 text=True,
@@ -173,24 +128,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             )
 
             if result.returncode == 0:
-                response = {
-                    "success": True,
-                    "agent": agent_name,
-                    "result": result.stdout.strip(),
-                    "model": model or "default"
-                }
+                return [TextContent(type="text", text=result.stdout.strip())]
             else:
-                response = {
-                    "success": False,
-                    "agent": agent_name,
-                    "error": f"cursor-agent failed: {result.stderr.strip()}",
-                    "returncode": result.returncode
-                }
-
-            return [TextContent(
-                type="text",
-                text=json.dumps(response, indent=2)
-            )]
+                return [TextContent(type="text", text=f"cursor-agent failed: {result.stderr.strip()}")]
 
         except subprocess.TimeoutExpired:
             return [TextContent(
@@ -208,33 +148,6 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                     "error": f"Failed to execute agent: {str(e)}"
                 }, indent=2)
             )]
-
-    elif name == "create-agent":
-        result = create_agent(
-            name=arguments["name"],
-            description=arguments["description"]
-        )
-
-        if result["success"]:
-            text = (
-                f"✅ {result['message']}\n"
-                f"Path: {result['path']}\n\n"
-                f"Next steps:\n"
-                f"1. Edit .cursorrules to customize behavior\n"
-                f"2. Add MCP servers to mcp.json if needed\n"
-                f"3. Use spawn-agent to execute tasks"
-            )
-        else:
-            text = f"❌ Error: {result['error']}"
-
-        return [TextContent(type="text", text=text)]
-
-    else:
-        return [TextContent(
-            type="text",
-            text=f"Unknown tool: {name}"
-        )]
-
 
 async def main():
     """Run the MCP server."""

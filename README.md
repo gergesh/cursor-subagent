@@ -91,7 +91,6 @@ Add to `.cursor/mcp.json`:
 Restart Cursor, and you can ask the AI to use these tools:
 - `list-agents` - List available agents
 - `spawn-agent` - Run cursor-agent with an agent configuration
-- `create-agent` - Create a new agent
 
 ## Contributing
 

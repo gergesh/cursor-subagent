@@ -75,7 +75,7 @@ def get_agent_info(name: str) -> Optional[dict]:
     info = {
         "name": name,
         "path": str(agent_path),
-        "has_rules": (agent_path / ".cursorrules").exists(),
+        "has_rules": (agent_path / ".cursorrules").exists() or ((agent_path / "rules").is_dir() and len((agent_path / "rules").iterdir()) > 0),
         "has_mcp_config": (agent_path / "mcp.json").exists(),
     }
 
@@ -85,49 +85,6 @@ def get_agent_info(name: str) -> Optional[dict]:
         info["description"] = desc_file.read_text().strip()
 
     return info
-
-
-def create_agent(name: str, description: str) -> dict:
-    """Create a new agent with basic structure."""
-    agent_path = get_agents_dir() / name
-
-    if agent_path.exists():
-        return {
-            "success": False,
-            "error": f"Agent '{name}' already exists at {agent_path}"
-        }
-
-    # Create directory structure
-    agent_path.mkdir(parents=True, exist_ok=True)
-
-    # Create description file
-    (agent_path / "description.txt").write_text(description)
-
-    # Create a basic .cursorrules file
-    cursorrules = f"""# {name} Agent
-
-{description}
-
-## Role
-You are a specialized agent focused on: {description.lower()}
-
-## Guidelines
-- Stay focused on your specialized role
-- Collaborate with other agents when needed
-- Follow best practices in your domain
-"""
-    (agent_path / ".cursorrules").write_text(cursorrules)
-
-    # Create empty MCP config
-    mcp_config = {"mcpServers": {}}
-    (agent_path / "mcp.json").write_text(json.dumps(mcp_config, indent=2))
-
-    return {
-        "success": True,
-        "name": name,
-        "path": str(agent_path),
-        "message": f"Created agent '{name}'"
-    }
 
 
 def run_with_agent(
