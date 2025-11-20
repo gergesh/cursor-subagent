@@ -3,9 +3,9 @@
 Core functionality for cursor-subagent - shared between CLI and MCP server.
 """
 
-import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -75,7 +75,7 @@ def get_agent_info(name: str) -> Optional[dict]:
     info = {
         "name": name,
         "path": str(agent_path),
-        "has_rules": (agent_path / ".cursorrules").exists() or ((agent_path / "rules").is_dir() and len((agent_path / "rules").iterdir()) > 0),
+        "has_rules": (agent_path / ".cursorrules").exists() or ((agent_path / "rules").is_dir() and len(list((agent_path / "rules").iterdir())) > 0),
         "has_mcp_config": (agent_path / "mcp.json").exists(),
     }
 
@@ -146,6 +146,3 @@ def run_with_agent(
     except Exception as e:
         print(f"Error executing cursor-agent: {e}", file=sys.stderr)
         return 1
-
-
-import sys

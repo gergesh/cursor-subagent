@@ -6,6 +6,9 @@ import os
 import sys
 from pathlib import Path
 from loguru import logger
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
+from mcp.types import Tool, TextContent
 
 # Configure loguru to log to file
 log_file = Path(__file__).with_name("subagent_tester_mcp_server.log")
@@ -31,10 +34,6 @@ for key in ['DYLD_INSERT_LIBRARIES', 'CURSOR_REDIRECT_SOURCE', 'CURSOR_REDIRECT_
 logger.info(f"🔍 Subagent Tester MCP server started, logged to {log_file}")
 
 # Now run a minimal MCP server
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
-
 app = Server("subagent-tester-mcp")
 
 @app.list_tools()
@@ -56,6 +55,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     if name == "get-test-phrase":
         logger.info("get-test-phrase tool called")
         return [TextContent(type="text", text="The kiwis sit upon the mountaintops")]
+
+    raise ValueError(f"Unknown tool: {name}")
 
 async def main():
     logger.info("Starting MCP server main loop")

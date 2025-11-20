@@ -1,8 +1,6 @@
 
 import pytest
 from unittest.mock import patch, MagicMock
-import json
-import sys
 from cursor_subagent.server import call_tool
 
 @pytest.mark.asyncio

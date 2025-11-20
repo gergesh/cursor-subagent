@@ -10,7 +10,6 @@ import pytest
 from cursor_subagent.core import (
     list_agents,
     get_agent_info,
-    run_with_agent,
     get_cursor_agent_path
 )
 

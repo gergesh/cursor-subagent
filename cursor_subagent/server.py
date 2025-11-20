@@ -149,6 +149,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 }, indent=2)
             )]
 
+    raise ValueError(f"Unknown tool: {name}")
+
 async def main():
     """Run the MCP server."""
     async with stdio_server() as (read_stream, write_stream):

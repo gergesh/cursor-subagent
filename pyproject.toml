@@ -42,8 +42,11 @@ cursor_subagent = ["redirect_interpose.c", "libcursor_redirect.dylib", ".cursor/
 
 [tool.uv]
 dev-dependencies = [
+    "lefthook>=2.0.4",
     "pytest>=7.0.0",
     "pytest-asyncio>=1.3.0",
+    "ruff>=0.14.5",
+    "ty>=0.0.1a27",
 ]
 
 [tool.pytest.ini_options]
@@ -52,3 +55,6 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+
+[tool.ty.src]
+exclude = ["setup.py"]

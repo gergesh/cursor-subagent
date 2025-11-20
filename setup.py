@@ -2,7 +2,6 @@
 """
 Custom setup.py to build the dylib during wheel creation.
 """
-import os
 import sys
 import shutil
 import subprocess
@@ -73,7 +72,7 @@ class BuildDylib(build_py):
 
             print(f"✅ Dylib compiled and signed: {output_file}")
         except subprocess.CalledProcessError as e:
-            print(f"❌ Compilation failed:", file=sys.stderr)
+            print("❌ Compilation failed:", file=sys.stderr)
             if e.stderr:
                 print(e.stderr, file=sys.stderr)
             raise RuntimeError("Failed to compile dylib") from e

@@ -6,9 +6,6 @@ cursor-subagent CLI - Transparent wrapper for cursor-agent with isolated agent c
 import sys
 import subprocess
 import argparse
-import re
-from pathlib import Path
-from typing import Optional
 
 from . import __version__
 from .server import run_mcp_server

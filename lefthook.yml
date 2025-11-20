@@ -1,0 +1,6 @@
+pre-commit:
+  commands:
+    ruff:
+      run: uv run ruff check .
+    ty:
+      run: uv run ty check
