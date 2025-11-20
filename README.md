@@ -52,7 +52,7 @@ cursor-subagent list-agents
 ## How It Works
 
 When you use `-a <agent>`, cursor-subagent injects a dylib into the normal `cursor-agent` invocation.
-It incercepts filesystem calls and redirects all `.cursor/*` file reads to access `.cursor/agents/<agent>/` under the hood instead.
+The dylib incercepts filesystem calls and redirects all `.cursor/*` file reads to access `.cursor/agents/<agent>/` under the hood instead.
 This means cursor-agent transparently loads the agent's `.cursorrules` and `mcp.json` without knowing anything changed.
 
 ## Creating Agents
